@@ -6,13 +6,11 @@ from decimal import Decimal
 
 
 class DataSourceType(str, Enum):
-    """数据源类型"""
-    CCXT = "ccxt"           # CCXT库
-    ANKR = "ankr"           # Ankr API (区块链RPC节点)
-    RESERVOIR = "reservoir" # Reservoir API (NFT交易聚合器)
-    OKX_P2P = "okx_p2p"     # OKX P2P API
-    ONEINCH = "1inch"       # 1inch API (DEX聚合器)
-    INTERNAL = "internal"   # 内部数据
+    """数据源类型枚举"""
+    ANKR = "ankr"
+    RESERVOIR = "reservoir"
+    OKX_P2P = "okx_p2p"
+    ONEINCH = "oneinch"
 
 
 class TimeFrame(str, Enum):

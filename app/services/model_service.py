@@ -11,8 +11,7 @@ from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
 from sklearn.metrics import mean_absolute_error, mean_squared_error, accuracy_score, precision_score, recall_score, f1_score
 
-from app.core.exceptions import BadRequestException
-from app.exceptions.service_exceptions import ServiceUnavailableException
+from app.core.exceptions import BadRequestException, ServiceUnavailableException
 from app.db.historical_data_db import HistoricalDataDB, FeatureDataDB, TrainedModelDB, ModelPerformanceDB
 from app.db.models import FeatureData, TrainedModel, ModelPerformance
 

@@ -1,4 +1,4 @@
-from pymongo import MongoClient
+from motor.motor_asyncio import AsyncIOMotorClient
 from pymongo.database import Database
 from pymongo.errors import ConnectionFailure, ConfigurationError
 
@@ -12,7 +12,7 @@ class MongoDB:
     _db = None
 
     @classmethod
-    def get_client(cls) -> MongoClient:
+    def get_client(cls) -> AsyncIOMotorClient:
         """获取MongoDB客户端连接"""
         if cls._client is None:
             try:
@@ -20,18 +20,17 @@ class MongoDB:
                 uri = "mongodb://root:dkh7zdsg@test-db-mongodb.ns-vbg4dujj.svc:27017"
                 
                 # 创建连接
-                cls._client = MongoClient(uri)
+                cls._client = AsyncIOMotorClient(uri)
                 
-                # 测试连接
-                cls._client.admin.command('ping')
-                logger.info("MongoDB连接成功")
+                # 测试连接不再需要，motor会自动在需要时建立连接
+                logger.info("MongoDB连接成功创建")
             except (ConnectionFailure, ConfigurationError) as e:
                 logger.error(f"MongoDB连接失败: {str(e)}")
                 raise
         return cls._client
 
     @classmethod
-    def get_db(cls) -> Database:
+    def get_db(cls):
         """获取数据库实例"""
         if cls._db is None:
             client = cls.get_client()

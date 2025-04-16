@@ -7,6 +7,18 @@ from typing import Any, Optional, Union
 logger = logging.getLogger(__name__)
 
 class RedisClient:
+    """Redis客户端模拟类"""
+    
+    @staticmethod
+    def get(key: str) -> str:
+        """获取缓存数据"""
+        return None
+    
+    @staticmethod
+    def set(key: str, value: str, ex: int = None) -> bool:
+        """设置缓存数据"""
+        return True
+
     _client = None
 
     @classmethod

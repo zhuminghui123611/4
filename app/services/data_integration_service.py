@@ -281,7 +281,7 @@ class DataIntegrationService:
     @with_cache(ttl=300, cache_key_prefix="ankr_api")
     async def fetch_ankr_data(cls, chain: str, method: str, params: List[Any]) -> Dict[str, Any]:
         """
-        从Ankr API获取区块链数据
+        从中继服务获取Ankr区块链数据
         
         Args:
             chain: 区块链名称
@@ -298,35 +298,31 @@ class DataIntegrationService:
             "params": params
         }
         
-        headers = {
-            "Content-Type": "application/json",
-            "Accept": "application/json",
-        }
-        
-        if settings.ANKR_API_KEY:
-            headers["ankr-api-key"] = settings.ANKR_API_KEY
+        # 使用中继服务的端点格式
+        endpoint = f"{chain}"
         
         response = await cls._make_api_request(
             data_source=DataSourceType.ANKR,
             method="POST",
-            endpoint=chain,
-            data=request_data,
-            headers=headers
+            endpoint=endpoint,
+            data=request_data
         )
         
-        if "error" in response:
+        # 检查中继服务的响应格式
+        if isinstance(response, dict) and "error" in response:
             error_msg = f"Ankr API错误: {response['error']}"
             logger.error(error_msg)
             raise ExternalAPIException(error_msg)
         
-        return response["result"]
+        # 中继服务可能直接返回结果或包装在result中
+        return response.get("result", response)
     
     @classmethod
     @with_retry(max_retries=3, retry_delay=1.0, backoff_factor=2.0)
     @with_cache(ttl=300, cache_key_prefix="reservoir_api")
     async def fetch_reservoir_data(cls, endpoint: str, params: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         """
-        从Reservoir API获取NFT数据
+        从中继服务获取Reservoir NFT数据
         
         Args:
             endpoint: API端点
@@ -342,6 +338,12 @@ class DataIntegrationService:
             params=params,
         )
         
+        # 中继服务可能对响应进行了包装，处理可能的错误
+        if isinstance(response, dict) and "error" in response:
+            error_msg = f"Reservoir API错误: {response['error']}"
+            logger.error(error_msg)
+            raise ExternalAPIException(error_msg)
+        
         return response
     
     @classmethod
@@ -355,7 +357,7 @@ class DataIntegrationService:
         method: str = "GET"
     ) -> Dict[str, Any]:
         """
-        从OKX P2P API获取数据
+        从中继服务获取OKX P2P数据
         
         Args:
             endpoint: API端点
@@ -374,20 +376,30 @@ class DataIntegrationService:
             data=data,
         )
         
-        # OKX API通常包含一个code字段，0表示成功
-        if response.get("code") != "0":
-            error_msg = f"OKX P2P API错误: {response.get('msg', 'Unknown error')}"
+        # 处理中继服务返回的可能的错误
+        if isinstance(response, dict) and "error" in response:
+            error_msg = f"OKX P2P API错误: {response['error']}"
             logger.error(error_msg)
             raise ExternalAPIException(error_msg)
         
-        return response["data"]
+        # 中继服务可能直接返回数据或保留原始OKX响应结构
+        if isinstance(response, dict) and "code" in response:
+            # 如果中继服务保留了原始OKX响应结构
+            if response.get("code") != "0":
+                error_msg = f"OKX P2P API错误: {response.get('msg', 'Unknown error')}"
+                logger.error(error_msg)
+                raise ExternalAPIException(error_msg)
+            return response.get("data", response)
+        
+        # 假设中继服务直接返回数据
+        return response
     
     @classmethod
     @with_retry(max_retries=3, retry_delay=1.0, backoff_factor=2.0)
     @with_cache(ttl=60, cache_key_prefix="oneinch_api")
     async def fetch_oneinch_data(cls, chain_id: int, endpoint: str, params: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         """
-        从1inch API获取数据
+        从中继服务获取1inch数据
         
         Args:
             chain_id: 区块链ID
@@ -397,7 +409,11 @@ class DataIntegrationService:
         Returns:
             Dict[str, Any]: 1inch API响应数据
         """
-        full_endpoint = f"{chain_id}/{endpoint}"
+        # 调整为中继服务的端点格式
+        # 注意：中继服务API可能使用不同的URL格式，可能需要进一步调整
+        full_endpoint = f"{chain_id}"
+        if endpoint:
+            full_endpoint = f"{full_endpoint}/{endpoint}"
         
         response = await cls._make_api_request(
             data_source=DataSourceType.ONEINCH,
@@ -405,6 +421,12 @@ class DataIntegrationService:
             endpoint=full_endpoint,
             params=params,
         )
+        
+        # 处理中继服务返回的可能的错误
+        if isinstance(response, dict) and "error" in response:
+            error_msg = f"1inch API错误: {response['error']}"
+            logger.error(error_msg)
+            raise ExternalAPIException(error_msg)
         
         return response
     

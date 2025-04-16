@@ -28,14 +28,14 @@ class HistoricalDataDB:
             
             # 处理单条记录
             if isinstance(data, HistoricalData):
-                result = collection.insert_one(model_to_dict(data))
+                result = await collection.insert_one(model_to_dict(data))
                 logger.info(f"历史数据已保存: {data.data_id}")
                 return str(result.inserted_id)
             
             # 处理多条记录
             elif isinstance(data, list) and all(isinstance(item, HistoricalData) for item in data):
                 data_dicts = [model_to_dict(item) for item in data]
-                result = collection.insert_many(data_dicts)
+                result = await collection.insert_many(data_dicts)
                 logger.info(f"批量保存了 {len(result.inserted_ids)} 条历史数据")
                 return [str(id) for id in result.inserted_ids]
             
@@ -94,11 +94,13 @@ class HistoricalDataDB:
             cursor = collection.find(query).sort("timestamp", sort_order).limit(limit)
             
             # 转换为模型列表
-            records = []
-            async for doc in cursor:
-                records.append(dict_to_model(HistoricalData, doc))
+            data = []
+            # 使用 to_list 方法替代 async for
+            docs = await cursor.to_list(length=limit)
+            for doc in docs:
+                data.append(dict_to_model(HistoricalData, doc))
             
-            return records
+            return data
         except Exception as e:
             logger.error(f"获取历史数据失败: {str(e)}")
             raise
@@ -130,7 +132,7 @@ class HistoricalDataDB:
                 update_data["data_quality_score"] = data_quality_score
             
             # 执行更新
-            result = collection.update_one(
+            result = await collection.update_one(
                 {"data_id": data_id},
                 {"$set": update_data}
             )
@@ -210,7 +212,7 @@ class HistoricalDataDB:
         """
         try:
             collection = get_collection(COLLECTION_HISTORICAL_DATA)
-            result = collection.delete_one({"data_id": data_id})
+            result = await collection.delete_one({"data_id": data_id})
             
             if result.deleted_count > 0:
                 logger.info(f"历史数据已删除: {data_id}")
@@ -242,14 +244,14 @@ class FeatureDataDB:
             
             # 处理单条记录
             if isinstance(data, FeatureData):
-                result = collection.insert_one(model_to_dict(data))
+                result = await collection.insert_one(model_to_dict(data))
                 logger.info(f"特征数据已保存: {data.feature_id}")
                 return str(result.inserted_id)
             
             # 处理多条记录
             elif isinstance(data, list) and all(isinstance(item, FeatureData) for item in data):
                 data_dicts = [model_to_dict(item) for item in data]
-                result = collection.insert_many(data_dicts)
+                result = await collection.insert_many(data_dicts)
                 logger.info(f"批量保存了 {len(result.inserted_ids)} 条特征数据")
                 return [str(id) for id in result.inserted_ids]
             
@@ -308,11 +310,13 @@ class FeatureDataDB:
             cursor = collection.find(query).sort("timestamp", sort_order).limit(limit)
             
             # 转换为模型列表
-            records = []
-            async for doc in cursor:
-                records.append(dict_to_model(FeatureData, doc))
+            features = []
+            # 使用 to_list 方法替代 async for
+            docs = await cursor.to_list(length=limit)
+            for doc in docs:
+                features.append(dict_to_model(FeatureData, doc))
             
-            return records
+            return features
         except Exception as e:
             logger.error(f"获取特征数据失败: {str(e)}")
             raise
@@ -357,7 +361,7 @@ class TrainedModelDB:
         """
         try:
             collection = get_collection(COLLECTION_TRAINED_MODELS)
-            result = collection.insert_one(model_to_dict(model))
+            result = await collection.insert_one(model_to_dict(model))
             logger.info(f"训练模型信息已保存: {model.model_id}")
             return str(result.inserted_id)
         except Exception as e:
@@ -377,7 +381,7 @@ class TrainedModelDB:
         """
         try:
             collection = get_collection(COLLECTION_TRAINED_MODELS)
-            doc = collection.find_one({"model_id": model_id})
+            doc = await collection.find_one({"model_id": model_id})
             
             if doc:
                 return dict_to_model(TrainedModel, doc)
@@ -414,7 +418,9 @@ class TrainedModelDB:
             
             # 转换为模型列表
             models = []
-            async for doc in cursor:
+            # 使用 to_list 方法替代 async for
+            docs = await cursor.to_list(length=100)  # 假设模型数量不会太多
+            for doc in docs:
                 models.append(dict_to_model(TrainedModel, doc))
             
             return models
@@ -439,7 +445,7 @@ class TrainedModelDB:
             collection = get_collection(COLLECTION_TRAINED_MODELS)
             
             # 执行更新
-            result = collection.update_one(
+            result = await collection.update_one(
                 {"model_id": model_id},
                 {"$set": {"is_active": is_active}}
             )
@@ -472,7 +478,7 @@ class ModelPerformanceDB:
         """
         try:
             collection = get_collection(COLLECTION_MODEL_PERFORMANCES)
-            result = collection.insert_one(model_to_dict(performance))
+            result = await collection.insert_one(model_to_dict(performance))
             logger.info(f"模型性能评估记录已保存: {performance.performance_id}")
             return str(result.inserted_id)
         except Exception as e:
@@ -499,7 +505,9 @@ class ModelPerformanceDB:
             
             # 转换为模型列表
             performances = []
-            async for doc in cursor:
+            # 使用 to_list 方法替代 async for
+            docs = await cursor.to_list(length=limit)
+            for doc in docs:
                 performances.append(dict_to_model(ModelPerformance, doc))
             
             return performances
@@ -552,7 +560,9 @@ class ModelPerformanceDB:
             
             # 提取结果
             result = []
-            async for doc in cursor:
+            # 使用 to_list 方法替代 async for
+            docs = await cursor.to_list(length=limit)
+            for doc in docs:
                 performance = dict_to_model(ModelPerformance, doc["performance"])
                 model = await TrainedModelDB.get_trained_model(performance.model_id)
                 
@@ -591,7 +601,7 @@ class DataSourceDB:
         """
         try:
             collection = get_collection(COLLECTION_DATA_SOURCES)
-            result = collection.insert_one(model_to_dict(source))
+            result = await collection.insert_one(model_to_dict(source))
             logger.info(f"数据源信息已保存: {source.source_id}")
             return str(result.inserted_id)
         except Exception as e:
@@ -611,7 +621,7 @@ class DataSourceDB:
         """
         try:
             collection = get_collection(COLLECTION_DATA_SOURCES)
-            doc = collection.find_one({"source_id": source_id})
+            doc = await collection.find_one({"source_id": source_id})
             
             if doc:
                 return dict_to_model(DataSource, doc)
@@ -637,7 +647,9 @@ class DataSourceDB:
             
             # 转换为模型列表
             sources = []
-            async for doc in cursor:
+            # 使用 to_list 方法替代 async for
+            docs = await cursor.to_list(length=100)  # 假设不会超过100个数据源
+            for doc in docs:
                 sources.append(dict_to_model(DataSource, doc))
             
             return sources
@@ -662,7 +674,7 @@ class DataSourceDB:
             collection = get_collection(COLLECTION_DATA_SOURCES)
             
             # 执行更新
-            result = collection.update_one(
+            result = await collection.update_one(
                 {"source_id": source_id},
                 {"$set": {"status": status}}
             )
@@ -693,7 +705,7 @@ class DataSourceDB:
             collection = get_collection(COLLECTION_DATA_SOURCES)
             
             # 执行更新
-            result = collection.update_one(
+            result = await collection.update_one(
                 {"source_id": source_id},
                 {"$set": {"last_updated": datetime.now()}}
             )

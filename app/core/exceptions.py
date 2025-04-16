@@ -143,21 +143,16 @@ class ServiceUnavailableException(APIException):
         )
 
 
-class ExternalAPIException(APIException):
+class ExternalAPIException(Exception):
     """外部API调用异常"""
     
-    def __init__(
-        self, 
-        message: str = "外部API调用失败", 
-        error_code: str = ErrorCode.API_ERROR,
-        headers: Optional[Dict[str, Any]] = None
-    ):
-        super().__init__(
-            status_code=status.HTTP_502_BAD_GATEWAY,
-            error_code=error_code,
-            message=message,
-            headers=headers,
-        )
+    def __init__(self, message: str, status_code: int = 500):
+        self.message = message
+        self.status_code = status_code
+        super().__init__(self.message)
+    
+    def __str__(self) -> str:
+        return f"[{self.status_code}] {self.message}"
 
 
 class InternalServerException(APIException):

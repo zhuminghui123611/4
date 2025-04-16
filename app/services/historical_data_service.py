@@ -8,8 +8,7 @@ import uuid
 import json
 import os
 
-from app.core.exceptions import BadRequestException
-from app.exceptions.service_exceptions import ServiceUnavailableException
+from app.core.exceptions import BadRequestException, ServiceUnavailableException
 from app.db.historical_data_db import HistoricalDataDB, FeatureDataDB, DataSourceDB
 from app.db.models import HistoricalData, FeatureData, DataSource
 
