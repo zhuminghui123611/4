@@ -1,9 +1,13 @@
 [build]
   publish = "public"
   functions = "netlify/functions"
+  command = "./build.sh"
+  ignore = "git diff --quiet HEAD^ HEAD -- netlify/ package.json netlify.toml"
 
 [functions]
   node_bundler = "esbuild"
+  included_files = ["netlify/functions/**"]
+  excluded_files = ["**/*.py", "requirements.txt", "app/**", "scripts/**"]
 
 [[redirects]]
   from = "/api/*"
@@ -11,9 +15,12 @@
   status = 200
   force = true
 
-# 设置环境变量（生产环境中应通过Netlify控制台设置）
+# 设置环境变量
 [build.environment]
   NODE_VERSION = "18"
+  NETLIFY_USE_YARN = "false"
+  NETLIFY_IGNORE_MISSING_PYTHON = "true"
+  SKIP_PYTHON_REQUIREMENTS = "true"
 
 # 配置缓存控制
 [[headers]]
