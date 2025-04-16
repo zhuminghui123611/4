@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>加密货币交易费用计算器</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f8f9fa;
+            padding: 20px;
+        }
+        .container {
+            max-width: 900px;
+            background-color: #fff;
+            border-radius: 10px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            padding: 30px;
+            margin-top: 30px;
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .header h1 {
+            color: #1e3a8a;
+            font-weight: 600;
+        }
+        .form-label {
+            font-weight: 500;
+            color: #1e3a8a;
+        }
+        .btn-primary {
+            background-color: #1e3a8a;
+            border-color: #1e3a8a;
+        }
+        .btn-primary:hover {
+            background-color: #152a5f;
+            border-color: #152a5f;
+        }
+        .result-card {
+            border-left: 5px solid #1e3a8a;
+            padding: 20px;
+            margin-top: 20px;
+            display: none;
+        }
+        .fee-detail {
+            margin-bottom: 10px;
+            padding: 8px;
+            border-radius: 5px;
+            background-color: #f8f9fa;
+        }
+        .fee-label {
+            font-weight: 500;
+            color: #495057;
+        }
+        .fee-value {
+            font-weight: 600;
+            color: #1e3a8a;
+        }
+        .error-message {
+            color: #dc3545;
+            display: none;
+            margin-top: 15px;
+            padding: 10px;
+            background-color: #ffe9e9;
+            border-radius: 5px;
+            border-left: 4px solid #dc3545;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>加密货币交易费用计算器</h1>
+            <p class="text-muted">输入交易参数计算交易费用</p>
+        </div>
+
+        <div class="row">
+            <div class="col-md-6">
+                <form id="feeCalculatorForm">
+                    <div class="mb-3">
+                        <label for="symbol" class="form-label">交易对</label>
+                        <input type="text" class="form-control" id="symbol" placeholder="例如：BTC/USDT" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="amount" class="form-label">交易数量</label>
+                        <input type="number" class="form-control" id="amount" step="0.00000001" min="0" placeholder="例如：0.5" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="price" class="form-label">交易价格</label>
+                        <input type="number" class="form-control" id="price" step="0.01" min="0" placeholder="例如：50000" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="platformType" class="form-label">平台类型</label>
+                        <select class="form-select" id="platformType">
+                            <option value="CEX" selected>中心化交易所 (CEX)</option>
+                            <option value="DEX">去中心化交易所 (DEX)</option>
+                            <option value="P2P">点对点交易 (P2P)</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" id="advancedOptions">
+                            <label class="form-check-label" for="advancedOptions">高级选项</label>
+                        </div>
+                    </div>
+                    <div id="advancedOptionsSection" style="display: none;">
+                        <div class="mb-3">
+                            <label for="customSlippageRate" class="form-label">自定义滑点率 (%)</label>
+                            <input type="number" class="form-control" id="customSlippageRate" step="0.01" min="0" placeholder="例如：0.1">
+                        </div>
+                        <div class="mb-3">
+                            <label for="customRoutingFee" class="form-label">自定义路由费 (USD)</label>
+                            <input type="number" class="form-control" id="customRoutingFee" step="0.1" min="0" placeholder="例如：1.5">
+                        </div>
+                        <div class="mb-3">
+                            <label for="userTier" class="form-label">用户等级</label>
+                            <select class="form-select" id="userTier">
+                                <option value="basic" selected>基础</option>
+                                <option value="silver">银牌</option>
+                                <option value="gold">金牌</option>
+                                <option value="platinum">白金</option>
+                            </select>
+                        </div>
+                    </div>
+                    <button type="submit" class="btn btn-primary w-100">计算费用</button>
+                </form>
+                <div class="error-message" id="errorMessage"></div>
+            </div>
+            <div class="col-md-6">
+                <div class="result-card" id="resultCard">
+                    <h4>费用计算结果</h4>
+                    <div class="fee-detail">
+                        <span class="fee-label">交易对:</span>
+                        <span class="fee-value" id="resultSymbol">-</span>
+                    </div>
+                    <div class="fee-detail">
+                        <span class="fee-label">基础代币:</span>
+                        <span class="fee-value" id="resultBaseToken">-</span>
+                    </div>
+                    <div class="fee-detail">
+                        <span class="fee-label">交易数量:</span>
+                        <span class="fee-value" id="resultAmount">-</span>
+                    </div>
+                    <div class="fee-detail">
+                        <span class="fee-label">交易价格:</span>
+                        <span class="fee-value" id="resultPrice">-</span>
+                    </div>
+                    <div class="fee-detail">
+                        <span class="fee-label">估计交易价值 (USD):</span>
+                        <span class="fee-value" id="resultUsdValue">-</span>
+                    </div>
+                    <hr>
+                    <div class="fee-detail">
+                        <span class="fee-label">滑点费用 (USD):</span>
+                        <span class="fee-value" id="resultSlippageFee">-</span>
+                    </div>
+                    <div class="fee-detail">
+                        <span class="fee-label">路由费用 (USD):</span>
+                        <span class="fee-value" id="resultRoutingFee">-</span>
+                    </div>
+                    <div class="fee-detail">
+                        <span class="fee-label">总费用 (USD):</span>
+                        <span class="fee-value" id="resultTotalFee">-</span>
+                    </div>
+                    <div class="fee-detail">
+                        <span class="fee-label">有效费率 (%):</span>
+                        <span class="fee-value" id="resultEffectiveFeeRate">-</span>
+                    </div>
+                    <div class="fee-detail">
+                        <span class="fee-label">以代币计费:</span>
+                        <span class="fee-value" id="resultFeeInToken">-</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // 高级选项切换
+            const advancedOptions = document.getElementById('advancedOptions');
+            const advancedOptionsSection = document.getElementById('advancedOptionsSection');
+            
+            advancedOptions.addEventListener('change', function() {
+                advancedOptionsSection.style.display = this.checked ? 'block' : 'none';
+            });
+
+            // 表单提交
+            const feeCalculatorForm = document.getElementById('feeCalculatorForm');
+            const resultCard = document.getElementById('resultCard');
+            const errorMessage = document.getElementById('errorMessage');
+
+            feeCalculatorForm.addEventListener('submit', async function(e) {
+                e.preventDefault();
+                
+                // 隐藏之前的错误和结果
+                errorMessage.style.display = 'none';
+                resultCard.style.display = 'none';
+                
+                // 获取表单数据
+                const symbol = document.getElementById('symbol').value;
+                const amount = parseFloat(document.getElementById('amount').value);
+                const price = parseFloat(document.getElementById('price').value);
+                const platformType = document.getElementById('platformType').value;
+                
+                // 构建请求数据
+                const requestData = {
+                    symbol,
+                    amount,
+                    price,
+                    platformType,
+                    options: {}
+                };
+                
+                // 添加高级选项（如果启用）
+                if (advancedOptions.checked) {
+                    const customSlippageRate = document.getElementById('customSlippageRate').value;
+                    const customRoutingFee = document.getElementById('customRoutingFee').value;
+                    const userTier = document.getElementById('userTier').value;
+                    
+                    if (customSlippageRate) {
+                        requestData.options.customSlippageRate = parseFloat(customSlippageRate) / 100; // 转换为小数
+                    }
+                    
+                    if (customRoutingFee) {
+                        requestData.options.customRoutingFee = parseFloat(customRoutingFee);
+                    }
+                    
+                    if (userTier) {
+                        requestData.options.userTier = userTier;
+                    }
+                }
+                
+                try {
+                    // 发送API请求
+                    const response = await fetch('/api/fees/calculate', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify(requestData)
+                    });
+                    
+                    const result = await response.json();
+                    
+                    if (!result.success) {
+                        throw new Error(result.message || '计算费用失败');
+                    }
+                    
+                    // 显示结果
+                    displayResults(result.data);
+                    
+                } catch (error) {
+                    // 显示错误信息
+                    errorMessage.textContent = error.message || '发生错误，请重试';
+                    errorMessage.style.display = 'block';
+                }
+            });
+            
+            // 显示结果函数
+            function displayResults(data) {
+                // 填充结果到DOM
+                document.getElementById('resultSymbol').textContent = data.symbol;
+                document.getElementById('resultBaseToken').textContent = data.baseToken;
+                document.getElementById('resultAmount').textContent = data.amount.toFixed(8);
+                document.getElementById('resultPrice').textContent = data.price.toFixed(2);
+                document.getElementById('resultUsdValue').textContent = `$${data.estimatedUsdValue.toFixed(2)}`;
+                document.getElementById('resultSlippageFee').textContent = `$${data.slippageFee.toFixed(4)}`;
+                document.getElementById('resultRoutingFee').textContent = `$${data.routingFee.toFixed(4)}`;
+                document.getElementById('resultTotalFee').textContent = `$${data.totalFeeUsd.toFixed(4)}`;
+                document.getElementById('resultEffectiveFeeRate').textContent = `${(data.effectiveFeeRate * 100).toFixed(4)}%`;
+                document.getElementById('resultFeeInToken').textContent = `${data.feeInToken.toFixed(8)} ${data.baseToken}`;
+                
+                // 显示结果卡片
+                resultCard.style.display = 'block';
+            }
+        });
+    </script>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html> 

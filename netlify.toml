@@ -1,0 +1,23 @@
+[build]
+  functions = "netlify/functions"
+  publish = "public"
+  command = "# 如需构建前端资源可在此添加命令"
+
+[dev]
+  functions = "netlify/functions"
+  publish = "public"
+  port = 8888
+
+[functions]
+  node_bundler = "esbuild"
+  external_node_modules = ["ccxt"]
+
+# 设置环境变量（生产环境中应通过Netlify控制台设置）
+[build.environment]
+  NODE_VERSION = "18"
+
+# 配置缓存控制
+[[headers]]
+  for = "/*"
+  [headers.values]
+    Cache-Control = "public, max-age=60" 

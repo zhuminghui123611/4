@@ -1,0 +1,714 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>结算管理 - 加密货币数据中继服务</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            background-color: #f8f9fa;
+            color: #212529;
+            padding-top: 20px;
+        }
+        .header {
+            border-bottom: 1px solid #dee2e6;
+            margin-bottom: 30px;
+            padding-bottom: 10px;
+        }
+        .card {
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            margin-bottom: 20px;
+        }
+        .card-header {
+            background-color: #0d6efd;
+            color: white;
+            font-weight: bold;
+            border-top-left-radius: 8px;
+            border-top-right-radius: 8px;
+        }
+        .form-label {
+            font-weight: 600;
+        }
+        .btn-primary {
+            background-color: #0d6efd;
+            border-color: #0d6efd;
+        }
+        .btn-primary:hover {
+            background-color: #0b5ed7;
+            border-color: #0a58ca;
+        }
+        .form-check-input:checked {
+            background-color: #0d6efd;
+            border-color: #0d6efd;
+        }
+        .alert {
+            border-radius: 8px;
+        }
+        .settlement-record {
+            border-bottom: 1px solid #dee2e6;
+            padding: 10px 0;
+        }
+        .settlement-record:last-child {
+            border-bottom: none;
+        }
+        #balancesTable th, #recordsTable th {
+            background-color: #e9ecef;
+        }
+        .hidden {
+            display: none;
+        }
+        .spinner-border {
+            width: 1rem;
+            height: 1rem;
+            margin-right: 0.5rem;
+        }
+        .disabled-text {
+            color: #6c757d;
+            font-style: italic;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1 class="text-center">结算管理</h1>
+            <p class="text-center text-muted">加密货币数据中继服务 - 管理员控制台</p>
+        </div>
+
+        <div class="row">
+            <!-- 左侧：自动转账设置 -->
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header">
+                        隐形收费和自动转账设置
+                    </div>
+                    <div class="card-body">
+                        <div id="settingsAlert" class="alert hidden" role="alert"></div>
+                        
+                        <form id="autoTransferSettingsForm">
+                            <div class="mb-3 form-check form-switch">
+                                <input class="form-check-input" type="checkbox" id="autoTransferEnabled">
+                                <label class="form-check-label" for="autoTransferEnabled">启用自动转账</label>
+                                <small class="form-text text-muted d-block">启用后，收取的费用将自动转入指定地址，不再按比例分配到平台账户等</small>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label for="receiverAddress" class="form-label">接收地址</label>
+                                <input type="text" class="form-control" id="receiverAddress" placeholder="0x..." disabled>
+                                <small class="form-text text-muted">接收自动转账费用的钱包地址</small>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label for="autoTransferThreshold" class="form-label">自动转账阈值</label>
+                                <input type="number" class="form-control" id="autoTransferThreshold" min="0.01" step="0.01" value="10" disabled>
+                                <small class="form-text text-muted">当累积费用达到此阈值时触发自动转账</small>
+                            </div>
+                            
+                            <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                                <button type="button" id="refreshSettingsBtn" class="btn btn-secondary">
+                                    <span id="refreshSettingsSpinner" class="spinner-border hidden" role="status"></span>
+                                    刷新设置
+                                </button>
+                                <button type="submit" id="saveSettingsBtn" class="btn btn-primary" disabled>
+                                    <span id="saveSettingsSpinner" class="spinner-border hidden" role="status"></span>
+                                    保存设置
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+                
+                <!-- 账户余额 -->
+                <div class="card">
+                    <div class="card-header">
+                        账户余额
+                    </div>
+                    <div class="card-body">
+                        <div id="balancesAlert" class="alert hidden" role="alert"></div>
+                        
+                        <div id="autoTransferStatus" class="alert alert-info hidden">
+                            自动转账已启用。所有费用直接转入指定地址，账户余额信息可能不相关。
+                        </div>
+                        
+                        <div class="table-responsive">
+                            <table class="table table-striped" id="balancesTable">
+                                <thead>
+                                    <tr>
+                                        <th>账户</th>
+                                        <th>余额</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td colspan="2" class="text-center">加载中...</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                        
+                        <div id="pendingTransfers" class="hidden">
+                            <h5>待转账金额</h5>
+                            <div class="table-responsive">
+                                <table class="table table-sm" id="pendingTransfersTable">
+                                    <thead>
+                                        <tr>
+                                            <th>币种</th>
+                                            <th>金额</th>
+                                            <th>状态</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                        
+                        <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                            <button type="button" id="refreshBalancesBtn" class="btn btn-secondary">
+                                <span id="refreshBalancesSpinner" class="spinner-border hidden" role="status"></span>
+                                刷新余额
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 右侧：结算记录 -->
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header">
+                        结算记录
+                    </div>
+                    <div class="card-body">
+                        <div id="recordsAlert" class="alert hidden" role="alert"></div>
+                        
+                        <div class="mb-3 row">
+                            <div class="col-md-6">
+                                <label for="startDate" class="form-label">开始日期</label>
+                                <input type="date" class="form-control" id="startDate">
+                            </div>
+                            <div class="col-md-6">
+                                <label for="endDate" class="form-label">结束日期</label>
+                                <input type="date" class="form-control" id="endDate">
+                            </div>
+                        </div>
+                        
+                        <div class="table-responsive">
+                            <table class="table table-sm table-hover" id="recordsTable">
+                                <thead>
+                                    <tr>
+                                        <th>时间</th>
+                                        <th>订单ID</th>
+                                        <th>金额</th>
+                                        <th>状态</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td colspan="4" class="text-center">加载中...</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                        
+                        <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                            <button type="button" id="refreshRecordsBtn" class="btn btn-secondary">
+                                <span id="refreshRecordsSpinner" class="spinner-border hidden" role="status"></span>
+                                刷新记录
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 转账记录 -->
+                <div class="card">
+                    <div class="card-header">
+                        转账记录
+                    </div>
+                    <div class="card-body">
+                        <div id="transfersAlert" class="alert hidden" role="alert"></div>
+                        
+                        <div id="transfersDisabled" class="alert alert-warning hidden">
+                            自动转账未启用，没有转账记录。
+                        </div>
+                        
+                        <div class="table-responsive">
+                            <table class="table table-sm table-hover" id="transfersTable">
+                                <thead>
+                                    <tr>
+                                        <th>时间</th>
+                                        <th>金额</th>
+                                        <th>目标地址</th>
+                                        <th>状态</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td colspan="4" class="text-center">加载中...</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                        
+                        <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                            <button type="button" id="refreshTransfersBtn" class="btn btn-secondary">
+                                <span id="refreshTransfersSpinner" class="spinner-border hidden" role="status"></span>
+                                刷新转账
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 管理员密钥 - 实际生产环境中应从更安全的方式获取
+        const ADMIN_KEY = localStorage.getItem('admin_key') || '';
+        
+        // API基础URL
+        const API_BASE_URL = '/api/v1';
+        
+        // DOM元素引用
+        const autoTransferEnabledSwitch = document.getElementById('autoTransferEnabled');
+        const receiverAddressInput = document.getElementById('receiverAddress');
+        const thresholdInput = document.getElementById('autoTransferThreshold');
+        const saveSettingsBtn = document.getElementById('saveSettingsBtn');
+        const settingsAlert = document.getElementById('settingsAlert');
+        const balancesTable = document.getElementById('balancesTable');
+        const recordsTable = document.getElementById('recordsTable');
+        const transfersTable = document.getElementById('transfersTable');
+        const autoTransferStatus = document.getElementById('autoTransferStatus');
+        const pendingTransfers = document.getElementById('pendingTransfers');
+        const pendingTransfersTable = document.getElementById('pendingTransfersTable');
+        const transfersDisabled = document.getElementById('transfersDisabled');
+        
+        // 工具函数：显示提示
+        function showAlert(element, message, type = 'danger') {
+            element.textContent = message;
+            element.className = `alert alert-${type}`;
+            element.classList.remove('hidden');
+            
+            // 5秒后自动隐藏
+            setTimeout(() => {
+                element.classList.add('hidden');
+            }, 5000);
+        }
+        
+        // 工具函数：显示/隐藏加载器
+        function toggleLoader(buttonId, spinnerId, show) {
+            const button = document.getElementById(buttonId);
+            const spinner = document.getElementById(spinnerId);
+            
+            button.disabled = show;
+            if (show) {
+                spinner.classList.remove('hidden');
+            } else {
+                spinner.classList.add('hidden');
+            }
+        }
+        
+        // 工具函数：格式化日期时间
+        function formatDateTime(isoString) {
+            if (!isoString) return 'N/A';
+            const date = new Date(isoString);
+            return `${date.toLocaleDateString()} ${date.toLocaleTimeString()}`;
+        }
+        
+        // 工具函数：截断长文本（例如地址）
+        function truncateText(text, maxLength = 10) {
+            if (!text || text.length <= maxLength) return text;
+            return `${text.substring(0, maxLength / 2)}...${text.substring(text.length - maxLength / 2)}`;
+        }
+        
+        // 初始化页面
+        async function initPage() {
+            // 检查管理员密钥
+            if (!ADMIN_KEY) {
+                const key = prompt('请输入管理员密钥：');
+                if (key) {
+                    localStorage.setItem('admin_key', key);
+                    location.reload();
+                } else {
+                    showAlert(settingsAlert, '需要管理员密钥来访问此页面', 'warning');
+                    return;
+                }
+            }
+            
+            // 加载所有数据
+            await loadAutoTransferSettings();
+            await loadBalances();
+            await loadSettlementRecords();
+            await loadTransferRecords();
+            
+            // 设置事件监听器
+            setupEventListeners();
+        }
+        
+        // 加载自动转账设置
+        async function loadAutoTransferSettings() {
+            toggleLoader('refreshSettingsBtn', 'refreshSettingsSpinner', true);
+            
+            try {
+                const response = await fetch(`${API_BASE_URL}/settlements/auto-transfer-settings?admin_key=${ADMIN_KEY}`);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    const settings = data.data;
+                    
+                    // 更新UI
+                    autoTransferEnabledSwitch.checked = settings.auto_transfer_enabled;
+                    receiverAddressInput.value = settings.fee_receiver_address;
+                    thresholdInput.value = settings.auto_transfer_threshold;
+                    
+                    // 根据启用状态调整输入框
+                    receiverAddressInput.disabled = !settings.auto_transfer_enabled;
+                    thresholdInput.disabled = !settings.auto_transfer_enabled;
+                    saveSettingsBtn.disabled = false;
+                    
+                } else {
+                    showAlert(settingsAlert, data.message || '加载设置失败', 'warning');
+                }
+            } catch (error) {
+                console.error('Error loading auto transfer settings:', error);
+                showAlert(settingsAlert, '加载设置时发生错误: ' + error.message, 'danger');
+            } finally {
+                toggleLoader('refreshSettingsBtn', 'refreshSettingsSpinner', false);
+            }
+        }
+        
+        // 保存自动转账设置
+        async function saveAutoTransferSettings(event) {
+            event.preventDefault();
+            
+            toggleLoader('saveSettingsBtn', 'saveSettingsSpinner', true);
+            
+            const enabled = autoTransferEnabledSwitch.checked;
+            const receiverAddress = receiverAddressInput.value;
+            const threshold = parseFloat(thresholdInput.value);
+            
+            // 简单验证
+            if (enabled && (!receiverAddress || receiverAddress.length < 10)) {
+                showAlert(settingsAlert, '请输入有效的接收地址', 'warning');
+                toggleLoader('saveSettingsBtn', 'saveSettingsSpinner', false);
+                return;
+            }
+            
+            if (isNaN(threshold) || threshold <= 0) {
+                showAlert(settingsAlert, '阈值必须大于零', 'warning');
+                toggleLoader('saveSettingsBtn', 'saveSettingsSpinner', false);
+                return;
+            }
+            
+            try {
+                const response = await fetch(`${API_BASE_URL}/settlements/auto-transfer-settings?admin_key=${ADMIN_KEY}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        enabled: enabled,
+                        receiver_address: receiverAddress,
+                        threshold: threshold
+                    })
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    showAlert(settingsAlert, '设置已成功更新', 'success');
+                    
+                    // 更新UI和刷新数据
+                    await loadBalances();
+                    await loadTransferRecords();
+                } else {
+                    showAlert(settingsAlert, data.message || '更新设置失败', 'warning');
+                }
+            } catch (error) {
+                console.error('Error saving auto transfer settings:', error);
+                showAlert(settingsAlert, '保存设置时发生错误: ' + error.message, 'danger');
+            } finally {
+                toggleLoader('saveSettingsBtn', 'saveSettingsSpinner', false);
+            }
+        }
+        
+        // 加载账户余额
+        async function loadBalances() {
+            toggleLoader('refreshBalancesBtn', 'refreshBalancesSpinner', true);
+            
+            try {
+                const response = await fetch(`${API_BASE_URL}/settlements/balances?admin_key=${ADMIN_KEY}`);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    const balances = data.data;
+                    
+                    // 清空表格
+                    balancesTable.querySelector('tbody').innerHTML = '';
+                    
+                    // 检查是否启用了自动转账
+                    if (balances.auto_transfer_enabled) {
+                        autoTransferStatus.classList.remove('hidden');
+                        
+                        // 显示待转账金额
+                        if (balances.pending_transfers && Object.keys(balances.pending_transfers).length > 0) {
+                            pendingTransfers.classList.remove('hidden');
+                            
+                            const pendingTbody = pendingTransfersTable.querySelector('tbody');
+                            pendingTbody.innerHTML = '';
+                            
+                            for (const [currency, amount] of Object.entries(balances.pending_transfers)) {
+                                const row = document.createElement('tr');
+                                row.innerHTML = `
+                                    <td>${currency}</td>
+                                    <td>${amount}</td>
+                                    <td><span class="badge bg-warning">待转账</span></td>
+                                `;
+                                pendingTbody.appendChild(row);
+                            }
+                        } else {
+                            pendingTransfers.classList.add('hidden');
+                        }
+                    } else {
+                        autoTransferStatus.classList.add('hidden');
+                        pendingTransfers.classList.add('hidden');
+                    }
+                    
+                    // 填充余额表格
+                    if (balances.balances) {
+                        const tbody = balancesTable.querySelector('tbody');
+                        
+                        for (const [account, balance] of Object.entries(balances.balances)) {
+                            const row = document.createElement('tr');
+                            row.innerHTML = `
+                                <td>${account.replace('_', ' ')}</td>
+                                <td>${balance}</td>
+                            `;
+                            tbody.appendChild(row);
+                        }
+                    }
+                } else {
+                    showAlert(balancesAlert, data.message || '加载余额失败', 'warning');
+                }
+            } catch (error) {
+                console.error('Error loading balances:', error);
+                showAlert(balancesAlert, '加载余额时发生错误: ' + error.message, 'danger');
+                
+                // 显示空表格
+                balancesTable.querySelector('tbody').innerHTML = `
+                    <tr>
+                        <td colspan="2" class="text-center text-danger">加载失败</td>
+                    </tr>
+                `;
+            } finally {
+                toggleLoader('refreshBalancesBtn', 'refreshBalancesSpinner', false);
+            }
+        }
+        
+        // 加载结算记录
+        async function loadSettlementRecords() {
+            toggleLoader('refreshRecordsBtn', 'refreshRecordsSpinner', true);
+            
+            const startDate = document.getElementById('startDate').value;
+            const endDate = document.getElementById('endDate').value;
+            
+            let url = `${API_BASE_URL}/settlements/records?admin_key=${ADMIN_KEY}&limit=50`;
+            if (startDate) url += `&start_date=${new Date(startDate).toISOString()}`;
+            if (endDate) url += `&end_date=${new Date(endDate).toISOString()}`;
+            
+            try {
+                const response = await fetch(url);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    const records = data.data;
+                    
+                    // 清空表格
+                    recordsTable.querySelector('tbody').innerHTML = '';
+                    
+                    // 填充记录表格
+                    if (records.length > 0) {
+                        const tbody = recordsTable.querySelector('tbody');
+                        
+                        for (const record of records) {
+                            const row = document.createElement('tr');
+                            
+                            // 确定状态显示
+                            let statusHtml = '';
+                            if (record.auto_transferred) {
+                                statusHtml = '<span class="badge bg-success">已转账</span>';
+                            } else if (record.status === 'pending_transfer') {
+                                statusHtml = '<span class="badge bg-warning">待转账</span>';
+                            } else {
+                                statusHtml = '<span class="badge bg-primary">已完成</span>';
+                            }
+                            
+                            row.innerHTML = `
+                                <td>${formatDateTime(record.timestamp)}</td>
+                                <td>${truncateText(record.order_id, 10)}</td>
+                                <td>${record.fee_amount} ${record.currency}</td>
+                                <td>${statusHtml}</td>
+                            `;
+                            tbody.appendChild(row);
+                        }
+                    } else {
+                        // 空记录
+                        recordsTable.querySelector('tbody').innerHTML = `
+                            <tr>
+                                <td colspan="4" class="text-center">无结算记录</td>
+                            </tr>
+                        `;
+                    }
+                } else {
+                    showAlert(recordsAlert, data.message || '加载结算记录失败', 'warning');
+                }
+            } catch (error) {
+                console.error('Error loading settlement records:', error);
+                showAlert(recordsAlert, '加载结算记录时发生错误: ' + error.message, 'danger');
+                
+                // 显示空表格
+                recordsTable.querySelector('tbody').innerHTML = `
+                    <tr>
+                        <td colspan="4" class="text-center text-danger">加载失败</td>
+                    </tr>
+                `;
+            } finally {
+                toggleLoader('refreshRecordsBtn', 'refreshRecordsSpinner', false);
+            }
+        }
+        
+        // 加载转账记录
+        async function loadTransferRecords() {
+            toggleLoader('refreshTransfersBtn', 'refreshTransfersSpinner', true);
+            
+            try {
+                const response = await fetch(`${API_BASE_URL}/settlements/transfers?admin_key=${ADMIN_KEY}`);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    // 检查是否启用了自动转账
+                    if (data.data.enabled) {
+                        transfersDisabled.classList.add('hidden');
+                        
+                        // 清空表格
+                        transfersTable.querySelector('tbody').innerHTML = '';
+                        
+                        // 填充转账记录表格
+                        const records = data.data.records;
+                        if (records && records.length > 0) {
+                            const tbody = transfersTable.querySelector('tbody');
+                            
+                            for (const record of records) {
+                                const row = document.createElement('tr');
+                                
+                                // 确定状态显示
+                                let statusHtml = '';
+                                if (record.status === 'completed') {
+                                    statusHtml = '<span class="badge bg-success">成功</span>';
+                                } else if (record.status === 'failed') {
+                                    statusHtml = '<span class="badge bg-danger">失败</span>';
+                                } else {
+                                    statusHtml = '<span class="badge bg-secondary">待定</span>';
+                                }
+                                
+                                row.innerHTML = `
+                                    <td>${formatDateTime(record.timestamp)}</td>
+                                    <td>${record.amount} ${record.currency}</td>
+                                    <td>${truncateText(record.destination, 10)}</td>
+                                    <td>${statusHtml}</td>
+                                `;
+                                tbody.appendChild(row);
+                            }
+                        } else {
+                            // 空记录
+                            transfersTable.querySelector('tbody').innerHTML = `
+                                <tr>
+                                    <td colspan="4" class="text-center">无转账记录</td>
+                                </tr>
+                            `;
+                        }
+                    } else {
+                        // 自动转账未启用
+                        transfersDisabled.classList.remove('hidden');
+                        transfersTable.querySelector('tbody').innerHTML = `
+                            <tr>
+                                <td colspan="4" class="text-center disabled-text">自动转账未启用</td>
+                            </tr>
+                        `;
+                    }
+                } else {
+                    showAlert(transfersAlert, data.message || '加载转账记录失败', 'warning');
+                }
+            } catch (error) {
+                console.error('Error loading transfer records:', error);
+                showAlert(transfersAlert, '加载转账记录时发生错误: ' + error.message, 'danger');
+                
+                // 显示空表格
+                transfersTable.querySelector('tbody').innerHTML = `
+                    <tr>
+                        <td colspan="4" class="text-center text-danger">加载失败</td>
+                    </tr>
+                `;
+            } finally {
+                toggleLoader('refreshTransfersBtn', 'refreshTransfersSpinner', false);
+            }
+        }
+        
+        // 设置事件监听器
+        function setupEventListeners() {
+            // 自动转账开关事件
+            autoTransferEnabledSwitch.addEventListener('change', function() {
+                receiverAddressInput.disabled = !this.checked;
+                thresholdInput.disabled = !this.checked;
+                
+                if (!this.checked) {
+                    receiverAddressInput.value = '';
+                }
+            });
+            
+            // 表单提交事件
+            document.getElementById('autoTransferSettingsForm').addEventListener('submit', saveAutoTransferSettings);
+            
+            // 刷新按钮事件
+            document.getElementById('refreshSettingsBtn').addEventListener('click', loadAutoTransferSettings);
+            document.getElementById('refreshBalancesBtn').addEventListener('click', loadBalances);
+            document.getElementById('refreshRecordsBtn').addEventListener('click', loadSettlementRecords);
+            document.getElementById('refreshTransfersBtn').addEventListener('click', loadTransferRecords);
+            
+            // 日期选择器事件
+            document.getElementById('startDate').addEventListener('change', loadSettlementRecords);
+            document.getElementById('endDate').addEventListener('change', loadSettlementRecords);
+        }
+        
+        // 页面加载完成后初始化
+        document.addEventListener('DOMContentLoaded', initPage);
+    </script>
+</body>
+</html> 

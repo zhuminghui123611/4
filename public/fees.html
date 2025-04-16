@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>交易费用计算器 - 加密货币交易数据分析执行后端服务</title>
+    <link rel="stylesheet" href="css/main.css">
+    <style>
+        .fee-calculator {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f8f9fa;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        
+        .form-group {
+            margin-bottom: 15px;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 600;
+        }
+        
+        .form-group input, .form-group select {
+            width: 100%;
+            padding: 8px 12px;
+            border: 1px solid #ced4da;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        
+        .form-row {
+            display: flex;
+            flex-wrap: wrap;
+            margin-right: -10px;
+            margin-left: -10px;
+        }
+        
+        .form-col {
+            flex: 0 0 50%;
+            max-width: 50%;
+            padding-right: 10px;
+            padding-left: 10px;
+            box-sizing: border-box;
+        }
+        
+        .btn {
+            display: inline-block;
+            font-weight: 400;
+            text-align: center;
+            white-space: nowrap;
+            vertical-align: middle;
+            user-select: none;
+            padding: 10px 20px;
+            font-size: 16px;
+            line-height: 1.5;
+            border-radius: 4px;
+            transition: color 0.15s ease-in-out, background-color 0.15s ease-in-out, border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+            cursor: pointer;
+        }
+        
+        .btn-primary {
+            color: #fff;
+            background-color: #007bff;
+            border-color: #007bff;
+        }
+        
+        .btn-primary:hover {
+            color: #fff;
+            background-color: #0069d9;
+            border-color: #0062cc;
+        }
+        
+        .fee-details-container {
+            margin-top: 30px;
+            padding: 20px;
+            background-color: #fff;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+        }
+        
+        .fee-details-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 20px;
+        }
+        
+        .fee-details-table th, .fee-details-table td {
+            padding: 10px;
+            text-align: left;
+            border-bottom: 1px solid #dee2e6;
+        }
+        
+        .fee-details-table th {
+            background-color: #f8f9fa;
+            font-weight: 600;
+        }
+        
+        .fee-details-table tr:last-child td {
+            border-bottom: none;
+        }
+        
+        .fee-description {
+            margin-top: 20px;
+            padding: 15px;
+            background-color: #f8f9fa;
+            border-radius: 4px;
+        }
+        
+        .fee-description ul {
+            margin: 0;
+            padding-left: 20px;
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        
+        .loading {
+            display: none;
+            text-align: center;
+            margin: 20px 0;
+        }
+        
+        .loading::after {
+            content: "⏳";
+            animation: loadingDots 1s infinite;
+        }
+        
+        @keyframes loadingDots {
+            0% { content: "⏳ "; }
+            33% { content: "⏳ . "; }
+            66% { content: "⏳ .. "; }
+            100% { content: "⏳ ... "; }
+        }
+        
+        .error-message {
+            color: #dc3545;
+            padding: 10px;
+            border-radius: 4px;
+            margin-top: 10px;
+            display: none;
+        }
+        
+        @media (max-width: 768px) {
+            .form-col {
+                flex: 0 0 100%;
+                max-width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header class="header">
+            <h1>交易费用计算器</h1>
+            <p>计算不同交易场景的费用，包括滑点费和路由费</p>
+        </header>
+        
+        <main>
+            <div class="fee-calculator">
+                <form id="feeCalculatorForm">
+                    <div class="form-row">
+                        <div class="form-col">
+                            <div class="form-group">
+                                <label for="symbol">交易对</label>
+                                <input type="text" id="symbol" name="symbol" placeholder="例如: BTC/USDT" required>
+                            </div>
+                        </div>
+                        <div class="form-col">
+                            <div class="form-group">
+                                <label for="amount">数量</label>
+                                <input type="number" id="amount" name="amount" step="0.00000001" min="0" placeholder="交易数量" required>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-col">
+                            <div class="form-group">
+                                <label for="price">价格 (USD)</label>
+                                <input type="number" id="price" name="price" step="0.00000001" min="0" placeholder="价格 (USD)" required>
+                            </div>
+                        </div>
+                        <div class="form-col">
+                            <div class="form-group">
+                                <label for="platformType">平台类型</label>
+                                <select id="platformType" name="platformType">
+                                    <option value="CEX">中心化交易所 (CEX)</option>
+                                    <option value="DEX">去中心化交易所 (DEX)</option>
+                                    <option value="P2P">点对点交易 (P2P)</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-col">
+                            <div class="form-group">
+                                <label for="customSlippageRate">自定义滑点率 (可选)</label>
+                                <input type="number" id="customSlippageRate" name="customSlippageRate" step="0.0001" min="0" max="0.1" placeholder="默认值将被使用">
+                            </div>
+                        </div>
+                        <div class="form-col">
+                            <div class="form-group">
+                                <label for="customRoutingFee">自定义路由费 (可选)</label>
+                                <input type="number" id="customRoutingFee" name="customRoutingFee" step="0.01" min="0" placeholder="默认值将被使用">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="userTier">用户等级</label>
+                        <select id="userTier" name="userTier">
+                            <option value="basic">基础用户 (无折扣)</option>
+                            <option value="silver">银牌用户 (5% 折扣)</option>
+                            <option value="gold">金牌用户 (10% 折扣)</option>
+                            <option value="platinum">白金用户 (15% 折扣)</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <button type="submit" class="btn btn-primary">计算费用</button>
+                    </div>
+                    
+                    <div id="errorMessage" class="error-message"></div>
+                    <div id="loading" class="loading">计算中</div>
+                </form>
+                
+                <div id="feeDetailsContainer" class="fee-details-container" style="display: none;">
+                    <!-- 费用计算结果将在这里显示 -->
+                </div>
+            </div>
+            
+            <div class="section">
+                <h2>关于交易费用</h2>
+                <p>我们的交易费用模型基于两个主要组成部分：</p>
+                <ul>
+                    <li><strong>滑点费</strong> - 基于交易金额的百分比计算，考虑市场条件和流动性。</li>
+                    <li><strong>路由费</strong> - 固定费用，用于支付交易路由和执行成本。</li>
+                </ul>
+                <p>不同的用户等级可以享受不同程度的费用折扣：</p>
+                <ul>
+                    <li>基础用户 - 无折扣</li>
+                    <li>银牌用户 - 5% 费用折扣</li>
+                    <li>金牌用户 - 10% 费用折扣</li>
+                    <li>白金用户 - 15% 费用折扣</li>
+                </ul>
+                <p>平台类型也会影响费用计算：</p>
+                <ul>
+                    <li>CEX (中心化交易所) - 标准费率</li>
+                    <li>DEX (去中心化交易所) - 可能包含额外的网络费用</li>
+                    <li>P2P (点对点交易) - 通常具有较低的固定费用</li>
+                </ul>
+            </div>
+        </main>
+        
+        <footer>
+            <p>&copy; 2023 加密货币交易数据分析执行后端服务. 保留所有权利.</p>
+        </footer>
+    </div>
+    
+    <script src="js/fees.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const feeCalculatorForm = document.getElementById('feeCalculatorForm');
+            const feeDetailsContainer = document.getElementById('feeDetailsContainer');
+            const errorMessage = document.getElementById('errorMessage');
+            const loading = document.getElementById('loading');
+            
+            // 表单提交事件
+            feeCalculatorForm.addEventListener('submit', async (event) => {
+                event.preventDefault();
+                
+                // 隐藏上一次的结果和错误信息
+                feeDetailsContainer.style.display = 'none';
+                errorMessage.style.display = 'none';
+                loading.style.display = 'block';
+                
+                try {
+                    // 获取表单数据
+                    const symbol = document.getElementById('symbol').value;
+                    const amount = parseFloat(document.getElementById('amount').value);
+                    const price = parseFloat(document.getElementById('price').value);
+                    const platformType = document.getElementById('platformType').value;
+                    const userTier = document.getElementById('userTier').value;
+                    
+                    // 获取可选参数
+                    let customSlippageRate = document.getElementById('customSlippageRate').value;
+                    customSlippageRate = customSlippageRate ? parseFloat(customSlippageRate) : null;
+                    
+                    let customRoutingFee = document.getElementById('customRoutingFee').value;
+                    customRoutingFee = customRoutingFee ? parseFloat(customRoutingFee) : null;
+                    
+                    // 调用费用计算API
+                    const feeDetails = await window.FeeService.calculateFees(
+                        symbol, 
+                        amount, 
+                        price, 
+                        platformType, 
+                        customSlippageRate, 
+                        customRoutingFee, 
+                        userTier
+                    );
+                    
+                    // 显示费用计算结果
+                    window.FeeService.displayFeeDetails(feeDetailsContainer, feeDetails);
+                    feeDetailsContainer.style.display = 'block';
+                } catch (error) {
+                    // 显示错误信息
+                    errorMessage.textContent = `计算费用时出错: ${error.message}`;
+                    errorMessage.style.display = 'block';
+                } finally {
+                    // 隐藏加载指示器
+                    loading.style.display = 'none';
+                }
+            });
+            
+            // 初始化费用配置
+            const initConfig = async () => {
+                try {
+                    // 获取当前费用配置
+                    await window.FeeService.getFeeConfiguration();
+                } catch (error) {
+                    console.error('获取费用配置失败:', error);
+                }
+            };
+            
+            // 页面加载后初始化配置
+            initConfig();
+        });
+    </script>
+</body>
+</html> 
