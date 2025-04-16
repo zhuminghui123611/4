@@ -1,442 +1,91 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html>
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="utf-8">
   <title>加密货币数据中继服务</title>
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
   <style>
     body {
-      font-family: 'PingFang SC', 'Helvetica Neue', Arial, sans-serif;
+      font-family: 'Arial', sans-serif;
       line-height: 1.6;
-      padding-top: 2rem;
-      padding-bottom: 2rem;
+      margin: 0;
+      padding: 0;
+      color: #333;
+      background-color: #f8f9fa;
+    }
+    .container {
+      width: 80%;
+      margin: 0 auto;
+      padding: 20px;
+    }
+    header {
+      background-color: #007bff;
+      color: white;
+      padding: 1rem;
+      text-align: center;
+    }
+    h1 {
+      margin-top: 0;
+    }
+    .card {
+      background-color: white;
+      border-radius: 5px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+      padding: 20px;
+      margin-bottom: 20px;
     }
     .endpoint {
-      margin-bottom: 1rem;
-      padding: 1rem;
-      border-radius: 0.25rem;
       background-color: #f8f9fa;
+      padding: 10px;
+      border-radius: 5px;
+      font-family: monospace;
+      margin: 10px 0;
     }
-    .endpoint:hover {
-      background-color: #e9ecef;
-    }
-    .method {
-      display: inline-block;
-      padding: 0.25rem 0.5rem;
-      border-radius: 0.25rem;
-      font-weight: bold;
-      color: white;
-    }
-    .get {
-      background-color: #28a745;
-    }
-    .post {
-      background-color: #007bff;
-    }
-    .status-card {
-      transition: all 0.3s ease;
-    }
-    .status-card:hover {
-      transform: translateY(-5px);
-      box-shadow: 0 0.5rem 1rem rgba(0,0,0,0.15);
-    }
-    .status-operational {
-      color: #28a745;
-    }
-    .status-error {
-      color: #dc3545;
-    }
-    pre {
-      background-color: #f8f9fa;
-      padding: 1rem;
-      border-radius: 0.25rem;
-      overflow-x: auto;
-    }
-    code {
-      color: #e83e8c;
-    }
-    .admin-link {
-      padding: 0.25rem 0.5rem;
-      margin-top: 1rem;
-      border-radius: 0.25rem;
-      background-color: #6c757d;
-      color: white;
-      text-decoration: none;
+    footer {
+      text-align: center;
+      padding: 20px;
+      margin-top: 20px;
+      color: #666;
       font-size: 0.9rem;
-      float: right;
-    }
-    .admin-link:hover {
-      background-color: #495057;
-      color: white;
     }
   </style>
 </head>
 <body>
+  <header>
+    <h1>加密货币数据中继服务</h1>
+    <p>基于CCXT库的加密货币交易所数据API中继服务</p>
+  </header>
+  
   <div class="container">
-    <header class="mb-5">
-      <div class="d-flex justify-content-between align-items-center">
-        <div>
-          <h1 class="display-4">加密货币数据中继服务</h1>
-          <p class="lead">为前端应用提供统一的加密货币数据获取与处理接口</p>
-        </div>
-        <div>
-          <a href="/settlement_admin.html" class="admin-link" id="adminLink">结算管理</a>
-        </div>
-      </div>
-      <hr>
-    </header>
-
-    <div class="row mb-5">
-      <div class="col-md-6">
-        <div class="card">
-          <div class="card-body">
-            <h5 class="card-title">服务概述</h5>
-            <p class="card-text">
-              本服务提供以下功能：
-            </p>
-            <ul>
-              <li>通过CCXT库与加密货币交易所集成</li>
-              <li>连接Ankr API获取区块链数据</li>
-              <li>整合Reservoir API获取NFT数据</li>
-              <li>利用1inch API获取DeFi交易数据</li>
-              <li>结合OKX P2P API获取场外交易数据</li>
-            </ul>
-            <p class="card-text">
-              所有API都经过完善的错误处理与缓存机制优化，保证数据获取的连续性和稳定性。
-            </p>
-          </div>
-        </div>
-      </div>
-      <div class="col-md-6">
-        <div class="card">
-          <div class="card-body">
-            <h5 class="card-title">服务状态</h5>
-            <div id="service-status">
-              <div class="d-flex justify-content-center">
-                <div class="spinner-border text-primary" role="status">
-                  <span class="visually-hidden">加载中...</span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
+    <div class="card">
+      <h2>服务概述</h2>
+      <p>本服务提供对多个加密货币交易所数据的访问，解决区域网络限制问题，支持市场行情、K线数据等信息查询。</p>
     </div>
-
-    <section class="mb-5">
-      <h2>API端点</h2>
-      <div class="alert alert-info">
-        所有API都基于 <code>/api/v1</code> 路径，同时支持跨域请求(CORS)。API限流为每分钟60次请求。
-      </div>
-      
-      <h3 class="mt-4">CCXT交易所数据</h3>
-      <div class="endpoint">
-        <span class="method get">GET</span>
-        <code>/api/v1/ccxt/exchanges</code>
-        <p>获取所有支持的交易所列表</p>
-      </div>
-      <div class="endpoint">
-        <span class="method get">GET</span>
-        <code>/api/v1/ccxt/exchanges/:exchangeId</code>
-        <p>获取特定交易所信息</p>
-      </div>
-      <div class="endpoint">
-        <span class="method get">GET</span>
-        <code>/api/v1/ccxt/ticker/:exchangeId/:symbol</code>
-        <p>获取特定交易所的价格行情</p>
-      </div>
-      <div class="endpoint">
-        <span class="method get">GET</span>
-        <code>/api/v1/ccxt/ohlcv/:exchangeId/:symbol?timeframe=1h&limit=100</code>
-        <p>获取K线数据</p>
-      </div>
-
-      <h3 class="mt-4">Ankr区块链数据</h3>
-      <div class="endpoint">
-        <span class="method get">GET</span>
-        <code>/api/v1/ankr/chains</code>
-        <p>获取支持的区块链网络列表</p>
-      </div>
-      <div class="endpoint">
-        <span class="method get">GET</span>
-        <code>/api/v1/ankr/balance/:blockchain/:address</code>
-        <p>获取账户余额</p>
-      </div>
-      <div class="endpoint">
-        <span class="method get">GET</span>
-        <code>/api/v1/ankr/token-price/:blockchain/:contractAddress</code>
-        <p>获取代币价格</p>
-      </div>
-      <div class="endpoint">
-        <span class="method get">GET</span>
-        <code>/api/v1/ankr/nft/:blockchain/:contractAddress/:tokenId</code>
-        <p>获取NFT元数据</p>
-      </div>
-      <div class="endpoint">
-        <span class="method get">GET</span>
-        <code>/api/v1/ankr/native-balance/:chain/:address</code>
-        <p>获取原生代币余额（如ETH、MATIC等）</p>
-      </div>
-      <div class="endpoint">
-        <span class="method get">GET</span>
-        <code>/api/v1/ankr/token-balance/:chain/:address/:tokenAddress</code>
-        <p>获取ERC20代币余额</p>
-      </div>
-      <div class="endpoint">
-        <span class="method post">POST</span>
-        <code>/api/v1/ankr/rpc/:chain</code>
-        <p>发送自定义RPC请求到指定区块链网络</p>
-      </div>
-
-      <h3 class="mt-4">Reservoir NFT数据</h3>
-      <div class="endpoint">
-        <span class="method get">GET</span>
-        <code>/api/v1/reservoir/collections/:collectionId?chain=ethereum</code>
-        <p>获取NFT集合信息</p>
-      </div>
-      <div class="endpoint">
-        <span class="method get">GET</span>
-        <code>/api/v1/reservoir/sales/:collectionId?chain=ethereum&limit=20</code>
-        <p>获取NFT销售历史</p>
-      </div>
-      <div class="endpoint">
-        <span class="method get">GET</span>
-        <code>/api/v1/reservoir/floor-price/:collectionId?chain=ethereum</code>
-        <p>获取NFT地板价</p>
-      </div>
-
-      <h3 class="mt-4">1inch DEX数据</h3>
-      <div class="endpoint">
-        <span class="method get">GET</span>
-        <code>/api/v1/1inch/tokens/:chainId?</code>
-        <p>获取支持的代币列表</p>
-      </div>
-      <div class="endpoint">
-        <span class="method get">GET</span>
-        <code>/api/v1/1inch/quote/:chainId?fromTokenAddress=0x...&toTokenAddress=0x...&amount=1000000000000000000</code>
-        <p>获取汇率报价</p>
-      </div>
-      <div class="endpoint">
-        <span class="method get">GET</span>
-        <code>/api/v1/1inch/swap/:chainId?fromTokenAddress=0x...&toTokenAddress=0x...&amount=1000000000000000000&fromAddress=0x...</code>
-        <p>获取互换路由</p>
-      </div>
-
-      <h3 class="mt-4">OKX P2P数据</h3>
-      <div class="endpoint">
-        <span class="method get">GET</span>
-        <code>/api/v1/okx/p2p?quoteCurrency=CNY&baseCurrency=USDT&side=buy</code>
-        <p>获取P2P广告列表</p>
-      </div>
-      <div class="endpoint">
-        <span class="method get">GET</span>
-        <code>/api/v1/okx/p2p/payment-methods</code>
-        <p>获取P2P支付方式</p>
-      </div>
-      <div class="endpoint">
-        <span class="method get">GET</span>
-        <code>/api/v1/okx/currencies</code>
-        <p>获取币种列表</p>
-      </div>
-
-      <h3 class="mt-4">系统状态</h3>
-      <div class="endpoint">
-        <span class="method get">GET</span>
-        <code>/health</code>
-        <p>健康检查端点</p>
-      </div>
-      <div class="endpoint">
-        <span class="method get">GET</span>
-        <code>/status</code>
-        <p>获取所有数据源状态</p>
-      </div>
-      <div class="endpoint">
-        <span class="method get">GET</span>
-        <code>/status/:source</code>
-        <p>获取特定数据源状态</p>
-      </div>
-    </section>
-
-    <section class="mb-5">
-      <h2>示例请求</h2>
-      <div class="card mb-3">
-        <div class="card-body">
-          <h5 class="card-title">获取比特币价格</h5>
-          <pre><code>fetch('/api/v1/ccxt/ticker/binance/BTC/USDT')
-  .then(response => response.json())
-  .then(data => console.log(data))
-  .catch(error => console.error('获取价格失败:', error));</code></pre>
-        </div>
-      </div>
-
-      <div class="card mb-3">
-        <div class="card-body">
-          <h5 class="card-title">获取NFT集合地板价</h5>
-          <pre><code>fetch('/api/v1/reservoir/floor-price/0xbc4ca0eda7647a8ab7c2061c2e118a18a936f13d')
-  .then(response => response.json())
-  .then(data => console.log(data))
-  .catch(error => console.error('获取地板价失败:', error));</code></pre>
-        </div>
-      </div>
-
-      <div class="card">
-        <div class="card-body">
-          <h5 class="card-title">获取1inch代币互换报价</h5>
-          <pre><code>const params = new URLSearchParams({
-  fromTokenAddress: '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE', // ETH
-  toTokenAddress: '0xdAC17F958D2ee523a2206206994597C13D831ec7', // USDT
-  amount: '1000000000000000000' // 1 ETH
-});
-
-fetch(`/api/v1/1inch/quote/1?${params}`)
-  .then(response => response.json())
-  .then(data => console.log(data))
-  .catch(error => console.error('获取报价失败:', error));</code></pre>
-        </div>
-      </div>
-
-      <div class="card mb-3">
-        <div class="card-body">
-          <h5 class="card-title">获取ETH区块链原生余额</h5>
-          <pre><code>fetch('/api/v1/ankr/native-balance/eth/0x71C7656EC7ab88b098defB751B7401B5f6d8976F')
-  .then(response => response.json())
-  .then(data => console.log(data))
-  .catch(error => console.error('获取余额失败:', error));</code></pre>
-        </div>
-      </div>
-
-      <div class="card mb-3">
-        <div class="card-body">
-          <h5 class="card-title">使用自定义RPC请求</h5>
-          <pre><code>fetch('/api/v1/ankr/rpc/eth', {
-  method: 'POST',
-  headers: {
-    'Content-Type': 'application/json',
-  },
-  body: JSON.stringify({
-    method: 'eth_blockNumber',
-    params: []
-  })
-})
-  .then(response => response.json())
-  .then(data => console.log(data))
-  .catch(error => console.error('RPC请求失败:', error));</code></pre>
-        </div>
-      </div>
-    </section>
-
-    <section class="mb-5">
-      <h2>错误处理</h2>
-      <p>API返回以下HTTP状态码：</p>
-      <ul>
-        <li><strong>200</strong> - 请求成功</li>
-        <li><strong>400</strong> - 错误请求，参数无效</li>
-        <li><strong>404</strong> - 资源不存在</li>
-        <li><strong>429</strong> - 请求过于频繁</li>
-        <li><strong>500</strong> - 服务器内部错误</li>
-      </ul>
-      <p>错误响应格式如下：</p>
-      <pre><code>{
-  "error": {
-    "status": 400,
-    "message": "错误描述",
-    "source": "错误来源（CCXT, ANKR等）",
-    "timestamp": "2023-06-01T12:34:56.789Z"
-  }
-}</code></pre>
-    </section>
-
-    <footer class="border-top pt-4 mt-5 text-muted">
-      <div class="row">
-        <div class="col-md-6">
-          <p>© 2023 加密货币数据中继服务</p>
-        </div>
-        <div class="col-md-6 text-end">
-          <p>部署于 Netlify</p>
-        </div>
-      </div>
-    </footer>
-  </div>
-
-  <script>
-    // 检查本地存储中是否有管理员密钥，决定是否显示管理链接
-    document.addEventListener('DOMContentLoaded', function() {
-      const adminKey = localStorage.getItem('admin_key');
-      const adminLink = document.getElementById('adminLink');
-      
-      if (!adminKey) {
-        adminLink.style.display = 'none';
-      }
-    });
-
-    // 加载服务状态信息
-    async function loadServiceStatus() {
-      try {
-        const response = await fetch('/status');
-        const data = await response.json();
-        
-        const statusContainer = document.getElementById('service-status');
-        statusContainer.innerHTML = '';
-        
-        const statusRow = document.createElement('div');
-        statusRow.className = 'row g-3';
-        
-        // 添加整体状态
-        const overallStatus = document.createElement('div');
-        overallStatus.className = 'col-12 mb-3';
-        overallStatus.innerHTML = `
-          <div class="d-flex justify-content-between align-items-center">
-            <span>整体状态</span>
-            <span class="badge bg-success">运行中</span>
-          </div>
-          <p class="small text-muted mb-0">最后检查: ${new Date(data.timestamp).toLocaleString()}</p>
-        `;
-        statusRow.appendChild(overallStatus);
-        
-        // 添加各数据源状态
-        for (const [source, info] of Object.entries(data.sources)) {
-          const statusCol = document.createElement('div');
-          statusCol.className = 'col-md-6 col-lg-4';
-          
-          const statusClass = info.status === 'operational' ? 'status-operational' : 'status-error';
-          const statusBadge = info.status === 'operational' ? 'bg-success' : 'bg-danger';
-          const statusText = info.status === 'operational' ? '正常' : '异常';
-          
-          statusCol.innerHTML = `
-            <div class="card status-card">
-              <div class="card-body">
-                <h5 class="card-title">${source}</h5>
-                <div class="d-flex justify-content-between align-items-center">
-                  <span class="${statusClass}">
-                    <i class="bi ${info.status === 'operational' ? 'bi-check-circle-fill' : 'bi-x-circle-fill'}"></i>
-                    ${statusText}
-                  </span>
-                  <span class="badge ${statusBadge}">${info.status === 'operational' ? '在线' : '离线'}</span>
-                </div>
-                ${info.responseTime ? `<p class="card-text small text-muted mt-2">响应时间: ${info.responseTime}</p>` : ''}
-                ${info.error ? `<p class="card-text small text-danger mt-2">错误: ${info.error}</p>` : ''}
-                <p class="card-text small text-muted mb-0">最后检查: ${new Date(info.checkedAt).toLocaleString()}</p>
-              </div>
-            </div>
-          `;
-          
-          statusRow.appendChild(statusCol);
-        }
-        
-        statusContainer.appendChild(statusRow);
-      } catch (error) {
-        const statusContainer = document.getElementById('service-status');
-        statusContainer.innerHTML = `
-          <div class="alert alert-danger">
-            无法加载服务状态: ${error.message}
-          </div>
-        `;
-      }
-    }
     
-    // 页面加载完成后加载服务状态
-    document.addEventListener('DOMContentLoaded', loadServiceStatus);
-  </script>
+    <div class="card">
+      <h2>API端点</h2>
+      
+      <h3>服务状态</h3>
+      <div class="endpoint">GET: <a href="/.netlify/functions/api/health">/.netlify/functions/api/health</a></div>
+      
+      <h3>CCXT交易所列表</h3>
+      <div class="endpoint">GET: <a href="/.netlify/functions/api/api/v1/ccxt/exchanges">/.netlify/functions/api/api/v1/ccxt/exchanges</a></div>
+      
+      <h3>交易所信息</h3>
+      <div class="endpoint">GET: /.netlify/functions/api/api/v1/ccxt/exchanges/:exchangeId</div>
+      <p>例如: <a href="/.netlify/functions/api/api/v1/ccxt/exchanges/binance">/.netlify/functions/api/api/v1/ccxt/exchanges/binance</a></p>
+      
+      <h3>获取行情数据</h3>
+      <div class="endpoint">GET: /.netlify/functions/api/api/v1/ccxt/ticker/:exchangeId/:symbol</div>
+      <p>例如: <a href="/.netlify/functions/api/api/v1/ccxt/ticker/binance/BTC/USDT">/.netlify/functions/api/api/v1/ccxt/ticker/binance/BTC-USDT</a></p>
+      
+      <h3>获取K线数据</h3>
+      <div class="endpoint">GET: /.netlify/functions/api/api/v1/ccxt/ohlcv/:exchangeId/:symbol?timeframe=1h&limit=100</div>
+      <p>例如: <a href="/.netlify/functions/api/api/v1/ccxt/ohlcv/binance/BTC-USDT?timeframe=1d&limit=30">/.netlify/functions/api/api/v1/ccxt/ohlcv/binance/BTC-USDT?timeframe=1d&limit=30</a></p>
+    </div>
+  </div>
+  
+  <footer>
+    <p>© 2023 加密货币数据中继服务 | 基于CCXT库和Netlify开发</p>
+  </footer>
 </body>
 </html> 
