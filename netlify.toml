@@ -24,4 +24,9 @@
 [[redirects]]
   from = "/ccxt/*"
   to = "/.netlify/functions/ccxt-api/api/:splat"
+  status = 200
+
+[[redirects]]
+  from = "/api/ccxt/*"
+  to = "/.netlify/functions/ccxt-simple/:splat"
   status = 200 
