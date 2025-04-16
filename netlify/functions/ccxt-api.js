@@ -1,7 +1,7 @@
 const express = require('express');
 const serverless = require('serverless-http');
 const cors = require('cors');
-const CcxtAdapter = require('./lib/ccxt-adapter');
+const CcxtAdapter = require('./ccxt-adapter');
 
 // 创建Express应用
 const app = express();
