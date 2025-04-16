@@ -1,0 +1,7 @@
+[33mcommit 2c1a69c62e7d831baa0e497178df3a56cbb77e42[m[33m ([m[1;36mHEAD -> [m[1;32mmaster[m[33m, [m[1;31mnew3/master[m[33m)[m
+Author: zhuminghui123611 <dlgljdjsyxgs@gmail.com>
+Date:   Wed Apr 16 13:15:47 2025 +0000
+
+    移除嵌入的Git仓库
+
+D	netlify-api-simple
