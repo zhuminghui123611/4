@@ -2,6 +2,7 @@ const express = require('express');
 const serverless = require('serverless-http');
 const cors = require('cors');
 const axios = require('axios');
+const ccxt = require('ccxt');
 
 // 创建Express应用
 const app = express();
@@ -58,7 +59,8 @@ app.get(`${API_V1_BASE}/status`, async (req, res) => {
       { name: 'Ankr API', configured: true },
       { name: 'Reservoir API', configured: true },
       { name: '1inch API', configured: true },
-      { name: 'WalletConnect', configured: true }
+      { name: 'WalletConnect', configured: true },
+      { name: 'CCXT', configured: true }
     ];
     
     res.json({
@@ -103,6 +105,16 @@ app.get(`${API_V1_BASE}/1inch/info`, (req, res) => {
     service: '1inch API',
     status: 'configured',
     supportedChains: ['ethereum', 'polygon', 'bsc', 'arbitrum', 'optimism'],
+    timestamp: new Date().toISOString()
+  });
+});
+
+// CCXT简化端点
+app.get(`${API_V1_BASE}/ccxt/info`, (req, res) => {
+  res.json({
+    service: 'CCXT API',
+    status: 'configured',
+    supportedExchanges: ccxt.exchanges.length,
     timestamp: new Date().toISOString()
   });
 });
@@ -191,6 +203,159 @@ app.get(`${API_V1_BASE}/tokens/:chainId`, async (req, res) => {
       error: {
         status: 500,
         message: '获取代币列表失败',
+        details: error.message
+      }
+    });
+  }
+});
+
+// CCXT - 获取所有支持的交易所列表
+app.get(`${API_V1_BASE}/ccxt/exchanges`, (req, res) => {
+  try {
+    res.json(ccxt.exchanges);
+  } catch (error) {
+    res.status(500).json({
+      error: {
+        status: 500,
+        message: '获取交易所列表失败',
+        details: error.message
+      }
+    });
+  }
+});
+
+// CCXT - 获取交易所信息
+app.get(`${API_V1_BASE}/ccxt/exchanges/:exchangeId`, async (req, res) => {
+  try {
+    const { exchangeId } = req.params;
+    
+    if (!ccxt.exchanges.includes(exchangeId)) {
+      return res.status(404).json({
+        error: {
+          status: 404,
+          message: `不支持的交易所: ${exchangeId}`
+        }
+      });
+    }
+    
+    // 创建交易所实例
+    const exchange = new ccxt[exchangeId]({
+      enableRateLimit: true
+    });
+    
+    // 获取交易所信息
+    await exchange.loadMarkets();
+    
+    const exchangeInfo = {
+      id: exchange.id,
+      name: exchange.name,
+      markets_count: Object.keys(exchange.markets).length,
+      timeframes: exchange.timeframes || {},
+      has: exchange.has,
+      urls: exchange.urls,
+      version: exchange.version,
+      countries: exchange.countries,
+      supported_cryptos: Object.keys(exchange.currencies || {})
+    };
+    
+    res.json(exchangeInfo);
+  } catch (error) {
+    res.status(500).json({
+      error: {
+        status: 500,
+        message: '获取交易所信息失败',
+        details: error.message
+      }
+    });
+  }
+});
+
+// CCXT - 获取行情数据
+app.get(`${API_V1_BASE}/ccxt/ticker/:exchangeId/:symbol`, async (req, res) => {
+  try {
+    const { exchangeId, symbol } = req.params;
+    
+    if (!ccxt.exchanges.includes(exchangeId)) {
+      return res.status(404).json({
+        error: {
+          status: 404,
+          message: `不支持的交易所: ${exchangeId}`
+        }
+      });
+    }
+    
+    // 创建交易所实例
+    const exchange = new ccxt[exchangeId]({
+      enableRateLimit: true
+    });
+    
+    // 获取ticker数据
+    const ticker = await exchange.fetchTicker(symbol);
+    
+    res.json(ticker);
+  } catch (error) {
+    res.status(500).json({
+      error: {
+        status: 500,
+        message: '获取行情数据失败',
+        details: error.message
+      }
+    });
+  }
+});
+
+// CCXT - 获取K线数据
+app.get(`${API_V1_BASE}/ccxt/ohlcv/:exchangeId/:symbol`, async (req, res) => {
+  try {
+    const { exchangeId, symbol } = req.params;
+    const timeframe = req.query.timeframe || '1h';
+    const limit = parseInt(req.query.limit || '100', 10);
+    const since = req.query.since ? parseInt(req.query.since, 10) : undefined;
+    
+    if (!ccxt.exchanges.includes(exchangeId)) {
+      return res.status(404).json({
+        error: {
+          status: 404,
+          message: `不支持的交易所: ${exchangeId}`
+        }
+      });
+    }
+    
+    // 创建交易所实例
+    const exchange = new ccxt[exchangeId]({
+      enableRateLimit: true
+    });
+    
+    // 检查交易所是否支持OHLCV
+    if (!exchange.has.fetchOHLCV) {
+      return res.status(400).json({
+        error: {
+          status: 400,
+          message: `交易所 ${exchangeId} 不支持获取K线数据`
+        }
+      });
+    }
+    
+    // 检查交易所是否支持请求的时间周期
+    await exchange.loadMarkets();
+    if (!exchange.timeframes || !(timeframe in exchange.timeframes)) {
+      return res.status(400).json({
+        error: {
+          status: 400,
+          message: `交易所 ${exchangeId} 不支持时间周期 ${timeframe}`
+        }
+      });
+    }
+    
+    // 获取OHLCV数据
+    const ohlcv = await exchange.fetchOHLCV(symbol, timeframe, since, limit);
+    
+    res.json(ohlcv);
+  } catch (error) {
+    res.status(500).json({
+      error: {
+        status: 500,
+        message: '获取K线数据失败',
         details: error.message
       }
     });
