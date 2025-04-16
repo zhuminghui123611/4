@@ -17,12 +17,15 @@
 # 设置环境变量
 [build.environment]
   NODE_VERSION = "18"
+  # 明确停用Python
+  PYTHON_VERSION = "false"
+  # 使用Node而不是Python
+  USE_NODE_RUNTIME = "true"
+  # 不使用yarn
   NETLIFY_USE_YARN = "false"
-  NETLIFY_IGNORE_MISSING_PYTHON = "true"
-  SKIP_PYTHON_REQUIREMENTS = "true"
 
 # 配置缓存控制
 [[headers]]
   for = "/*"
   [headers.values]
-    Cache-Control = "public, max-age=60" 
+    Cache-Control = "public, max-age=60"

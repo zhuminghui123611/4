@@ -1,9 +1,0 @@
-# 隐藏配置文件，告诉Netlify这是一个纯JS项目
-[build]
-  # 禁用自动Python依赖检测
-  command = "echo '只部署JS函数' && true"
-
-[build.environment]
-  # 覆盖任何自动检测的设置
-  NETLIFY_IGNORE_MISSING_PYTHON = "true"
-  SKIP_PYTHON_REQUIREMENTS = "true" 
