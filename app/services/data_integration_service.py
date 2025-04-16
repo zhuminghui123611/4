@@ -156,15 +156,18 @@ class DataIntegrationService:
         DataSourceType.ONEINCH: APIRateLimiter(calls_limit=100, time_period=60),  # 100 calls per minute
     }
     
-    # API基础URL配置
+    # 中继服务API基础URL
+    _relay_api_base_url = "https://calm-twilight-b880c5.netlify.app/api/v1"
+    
+    # API基础URL配置 - 已更新为使用中继服务
     _base_urls = {
-        DataSourceType.ANKR: "https://rpc.ankr.com/multichain/",
-        DataSourceType.RESERVOIR: "https://api.reservoir.tools/",
-        DataSourceType.OKX_P2P: "https://www.okx.com/api/v5/p2p/",
-        DataSourceType.ONEINCH: "https://api.1inch.io/v5.0/",
+        DataSourceType.ANKR: f"{_relay_api_base_url}/native-balance",
+        DataSourceType.RESERVOIR: f"{_relay_api_base_url}/collections",
+        DataSourceType.OKX_P2P: f"{_relay_api_base_url}/p2p",
+        DataSourceType.ONEINCH: f"{_relay_api_base_url}/tokens",
     }
     
-    # API请求头配置
+    # API请求头配置 - 已删除API密钥，因为中继服务已经包含了这些密钥
     _api_headers = {
         DataSourceType.ANKR: {
             "Content-Type": "application/json",
@@ -173,13 +176,10 @@ class DataIntegrationService:
         DataSourceType.RESERVOIR: {
             "Content-Type": "application/json",
             "Accept": "application/json",
-            "X-API-KEY": settings.RESERVOIR_API_KEY,
         },
         DataSourceType.OKX_P2P: {
             "Content-Type": "application/json",
             "Accept": "application/json",
-            "OK-ACCESS-KEY": settings.OKX_API_KEY,
-            "OK-ACCESS-PASSPHRASE": settings.OKX_API_PASSPHRASE,
         },
         DataSourceType.ONEINCH: {
             "Content-Type": "application/json",
@@ -199,93 +199,82 @@ class DataIntegrationService:
         headers: Optional[Dict[str, str]] = None,
     ) -> Dict[str, Any]:
         """
-        发起API请求
+        通用API请求方法，已更新为使用中继服务
         
         Args:
             data_source: 数据源类型
-            method: HTTP方法 (GET, POST, etc.)
+            method: HTTP方法
             endpoint: API端点
-            params: 查询参数
-            data: 请求体数据
-            timeout: 超时时间(秒)
-            headers: 额外的请求头
+            params: 查询参数（可选）
+            data: 请求体数据（可选）
+            timeout: 请求超时时间（秒）
+            headers: 额外请求头（可选）
             
         Returns:
-            Dict[str, Any]: API响应数据
+            API响应数据
             
         Raises:
-            ExternalAPIException: 当API请求失败时
+            ExternalAPIException: API请求失败
         """
-        # 获取速率限制器
-        rate_limiter = cls._rate_limiters.get(data_source)
-        if rate_limiter:
-            await rate_limiter.wait_if_needed()
+        # 构建完整URL
+        base_url = cls._base_urls.get(data_source, "")
         
-        # 构建URL
-        base_url = cls._base_urls.get(data_source)
         if not base_url:
-            raise ExternalAPIException(f"未知数据源: {data_source}")
+            raise ExternalAPIException(
+                status_code=500, 
+                message=f"未知的数据源类型: {data_source}"
+            )
         
         url = urljoin(base_url, endpoint)
         
         # 合并请求头
-        request_headers = cls._api_headers.get(data_source, {}).copy()
+        request_headers = dict(cls._api_headers.get(data_source, {}))
         if headers:
             request_headers.update(headers)
         
-        # 根据OKX API的要求生成签名 (如果需要)
-        if data_source == DataSourceType.OKX_P2P and settings.OKX_API_SECRET:
-            from app.utils.crypto import generate_okx_signature
-            timestamp = str(int(time.time() * 1000))
-            request_headers["OK-ACCESS-TIMESTAMP"] = timestamp
-            
-            # 生成签名
-            if method == "GET":
-                sign_str = timestamp + method + f"/{endpoint}"
-                if params:
-                    query_string = "&".join([f"{k}={v}" for k, v in sorted(params.items())])
-                    sign_str += f"?{query_string}"
-            else:
-                sign_str = timestamp + method + f"/{endpoint}"
-                if data:
-                    sign_str += json.dumps(data)
-            
-            sign = generate_okx_signature(sign_str, settings.OKX_API_SECRET)
-            request_headers["OK-ACCESS-SIGN"] = sign
+        # 记录API请求
+        logger.debug(f"发送API请求: [{method}] {url}")
         
-        try:
-            logger.debug(f"发起{data_source} API请求: {method} {url}")
+        # 应用速率限制
+        rate_limiter = cls._rate_limiters.get(data_source)
+        if rate_limiter:
+            await rate_limiter.wait_if_needed()
             
+        # 发送请求
+        try:
             async with httpx.AsyncClient(timeout=timeout) as client:
-                if method.upper() == "GET":
-                    response = await client.get(url, params=params, headers=request_headers)
-                elif method.upper() == "POST":
-                    response = await client.post(url, params=params, json=data, headers=request_headers)
-                else:
-                    raise ExternalAPIException(f"不支持的HTTP方法: {method}")
+                response = await client.request(
+                    method=method,
+                    url=url,
+                    params=params,
+                    json=data,
+                    headers=request_headers,
+                )
                 
-                # 检查HTTP状态码
+                # 检查响应状态
                 if response.status_code >= 400:
-                    error_msg = f"{data_source} API请求失败 ({response.status_code}): {response.text}"
-                    logger.error(error_msg)
-                    raise ExternalAPIException(error_msg)
+                    error_message = f"API请求失败: [{response.status_code}] - {response.text}"
+                    logger.error(error_message)
+                    raise ExternalAPIException(
+                        status_code=response.status_code,
+                        message=error_message
+                    )
                 
-                # 解析JSON响应
+                # 解析响应数据
                 try:
-                    return response.json()
+                    response_data = response.json()
                 except json.JSONDecodeError:
-                    error_msg = f"{data_source} API响应不是有效的JSON: {response.text}"
-                    logger.error(error_msg)
-                    raise ExternalAPIException(error_msg)
+                    response_data = {"raw_text": response.text}
+                
+                return response_data
                 
         except httpx.RequestError as e:
-            error_msg = f"{data_source} API请求错误: {str(e)}"
-            logger.error(error_msg)
-            raise ExternalAPIException(error_msg)
-        except Exception as e:
-            error_msg = f"{data_source} API请求异常: {str(e)}"
-            logger.error(error_msg)
-            raise ExternalAPIException(error_msg)
+            error_message = f"API请求异常: {str(e)}"
+            logger.error(error_message)
+            raise ExternalAPIException(
+                status_code=500,
+                message=error_message
+            )
     
     @classmethod
     @with_retry(max_retries=3, retry_delay=1.0, backoff_factor=2.0)
