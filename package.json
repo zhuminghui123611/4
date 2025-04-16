@@ -7,7 +7,11 @@
     "dev": "netlify dev"
   },
   "dependencies": {
-    "ccxt": "^4.4.75"
+    "axios": "^1.4.0",
+    "ccxt": "^4.4.75",
+    "cors": "^2.8.5",
+    "express": "^4.18.2",
+    "serverless-http": "^3.2.0"
   },
   "devDependencies": {
     "netlify-cli": "^15.0.0"
