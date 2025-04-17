@@ -67,6 +67,28 @@ function getExchangeEndpoint(exchange, endpoint) {
   return `${baseUrl}${endpoint}`;
 }
 
+/**
+ * 处理路径，移除Netlify函数路径前缀
+ * @param {string} path - 原始路径
+ * @returns {string} - 处理后的路径
+ */
+function normalizePath(path) {
+  // 移除Netlify函数路径前缀
+  let normalizedPath = path.replace(/^\/.netlify\/functions\/[^/]+/, '');
+  
+  // 移除ccxt-relay前缀 (从重定向规则)
+  normalizedPath = normalizedPath.replace(/^\/ccxt-relay/, '');
+  
+  // 确保路径以/开头
+  if (normalizedPath === '') {
+    normalizedPath = '/';
+  } else if (!normalizedPath.startsWith('/')) {
+    normalizedPath = '/' + normalizedPath;
+  }
+  
+  return normalizedPath;
+}
+
 // 导出API函数
 const adapter = {
   // 获取支持的交易所列表
@@ -144,18 +166,18 @@ const adapter = {
   // 提供给Netlify函数使用的处理器
   createHandler: () => {
     return async (event, context) => {
+      console.log('收到请求:', event.path);
+      
       // 设置CORS头
       const headers = corsHeaders;
       
-      // 处理路径
-      const path = event.path || '';
-      
-      // 解析路径段
-      const segments = path.split('/').filter(segment => segment);
+      // 处理路径，移除函数路径前缀和重定向前缀
+      const path = normalizePath(event.path || '');
+      console.log('处理后的路径:', path);
       
       try {
         // 健康检查
-        if (path === '' || path === '/') {
+        if (path === '/' || path === '') {
           return {
             statusCode: 200,
             headers,
@@ -198,6 +220,7 @@ const adapter = {
           body: JSON.stringify({
             error: '未找到请求的资源',
             path: path,
+            original_path: event.path,
             available_endpoints: [
               '/',
               '/exchanges',
