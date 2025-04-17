@@ -1,38 +1,45 @@
-// 测试通过中继服务获取Gate.io数据
+// 测试AllOrigins中继服务连通性
 const axios = require('axios');
 
 // 中继服务URL
-const RELAY_URL = 'https://magnificent-lolly-8c4284.netlify.app';
+const RELAY_URL = 'https://api.allorigins.win/raw?url=';
+const TEST_API = 'https://api.gateio.ws/api/v4/spot/tickers?currency_pair=BTC_USDT';
 
-async function testGateioRelay() {
+async function testRelay() {
+  console.log('开始测试中继服务连通性...');
+  
   try {
-    console.log('通过中继服务连接Gate.io...');
+    // 直接请求测试
+    console.log('1. 直接请求测试:');
+    const directResponse = await axios.get(TEST_API);
+    console.log('直接请求成功!');
+    console.log('数据示例:', JSON.stringify(directResponse.data).substring(0, 150) + '...');
     
-    // 构建API请求URL
-    const endpoint = `${RELAY_URL}/ccxt/v1/exchanges/gateio/ticker/BTC%2FUSDT`;
+    // 通过中继服务请求测试
+    console.log('\n2. 通过中继服务请求测试:');
+    const relayUrl = `${RELAY_URL}${encodeURIComponent(TEST_API)}`;
+    console.log('中继URL:', relayUrl);
     
-    console.log(`请求URL: ${endpoint}`);
-    const response = await axios.get(endpoint);
+    const relayResponse = await axios.get(relayUrl);
+    console.log('中继请求成功!');
+    console.log('数据示例:', JSON.stringify(relayResponse.data).substring(0, 150) + '...');
     
-    console.log('\nGate.io BTC/USDT 行情数据:');
-    console.log(JSON.stringify(response.data, null, 2));
-    
-    return response.data;
+    console.log('\n总结: 中继服务可用 ✓');
   } catch (error) {
-    console.error('请求失败:', error.message);
+    console.error('\n测试失败!');
+    
     if (error.response) {
-      console.error('响应状态:', error.response.status);
+      console.error('状态码:', error.response.status);
       console.error('响应数据:', error.response.data);
+    } else if (error.request) {
+      console.error('没有收到响应');
+    } else {
+      console.error('错误信息:', error.message);
     }
-    throw error;
+    
+    console.error('\n总结: 中继服务不可用 ✗');
   }
 }
 
 // 执行测试
-testGateioRelay()
-  .then(data => {
-    console.log('\n测试完成！');
-  })
-  .catch(err => {
-    console.error('\n测试失败。');
-  }); 
+testRelay(); 
